@@ -1,0 +1,2 @@
+# ZydraTraining
+Training Mode Zydra
