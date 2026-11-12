@@ -1,0 +1,6 @@
+torch
+transformers
+tokenizers
+sympy
+ddgs
+huggingface_hub
