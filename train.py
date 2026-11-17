@@ -26,7 +26,7 @@ except ImportError:
     hf_hub_download = list_repo_files = None
 
 
-# ----------------------------- Zydra architecture -----------------------------
+                                                                                
 
 @dataclass
 class ZydraConfig:
@@ -213,14 +213,14 @@ class ZydraForCausalLM(nn.Module):
         return model
 
 
-# ----------------------------- Data -----------------------------------------
+                                                                              
 
 def parse_txt(text):
     text = text.replace("\r\n", "\n").replace("\r", "\n").strip()
     if not text:
         return []
 
-    # Pair role-tagged conversations, including multiple turns in one file.
+                                                                           
     lines = text.splitlines()
     pairs, pending_user, pending_assistant = [], None, []
     for raw in lines:
@@ -242,7 +242,7 @@ def parse_txt(text):
     if pairs:
         return [(q, a) for q, a in pairs if q and a]
 
-    # Fallback: blank-line-separated question/answer blocks.
+                                                            
     out = []
     for block in re.split(r"\n\s*\n", text):
         lines = [x.strip() for x in block.splitlines() if x.strip()]
@@ -345,7 +345,7 @@ def prepare_data(files, output):
     print(f"[SAVED] {len(rows)} contoh -> {output}")
 
 
-# ----------------------------- Tokenizer/dataset -----------------------------
+                                                                               
 
 def train_tokenizer(rows, vocab_size, folder):
     if Tokenizer is None:
@@ -397,7 +397,7 @@ def collator(tokenizer):
     return batchify
 
 
-# ----------------------------- Train / save ----------------------------------
+                                                                               
 
 def evaluate(model, loader, device):
     model.eval()
