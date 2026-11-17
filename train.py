@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import argparse
 import json
 import math
@@ -120,17 +118,41 @@ class ZydraAttention(nn.Module):
         if repeat > 1:
             k, v = k.repeat_interleave(repeat, 1), v.repeat_interleave(repeat, 1)
 
-        mask = attention_mask[:, None, None, :].bool() if attention_mask is not None else None
+        mask = None
+        if attention_mask is not None:
+            attention_mask = attention_mask.to(device=x.device, dtype=torch.bool)
+            if attention_mask.ndim != 2 or attention_mask.shape != (b, t):
+                raise ValueError(
+                    f"attention_mask harus berbentuk {(b, t)}, "
+                    f"tetapi menerima {tuple(attention_mask.shape)}"
+                )
+            mask = attention_mask[:, None, None, :]
+
         p = self.dropout if self.training else 0.0
         if hasattr(F, "scaled_dot_product_attention"):
-            y = F.scaled_dot_product_attention(q, k, v, attn_mask=mask,
-                                                dropout_p=p, is_causal=True)
+            if mask is None:
+                y = F.scaled_dot_product_attention(
+                    q, k, v, dropout_p=p, is_causal=True
+                )
+            else:
+                causal = torch.ones(
+                    (t, t), device=x.device, dtype=torch.bool
+                ).tril()[None, None, :, :]
+                combined_mask = causal & mask
+                y = F.scaled_dot_product_attention(
+                    q, k, v, attn_mask=combined_mask,
+                    dropout_p=p, is_causal=False
+                )
         else:
             scores = q @ k.transpose(-2, -1) / math.sqrt(self.dim)
-            causal = torch.tril(torch.ones(t, t, device=x.device, dtype=torch.bool))
-            scores = scores.masked_fill(~causal[None, None], torch.finfo(scores.dtype).min)
+            causal = torch.ones(t, t, device=x.device, dtype=torch.bool).tril()
+            scores = scores.masked_fill(
+                ~causal[None, None], torch.finfo(scores.dtype).min
+            )
             if mask is not None:
-                scores = scores.masked_fill(~mask, torch.finfo(scores.dtype).min)
+                scores = scores.masked_fill(
+                    ~mask, torch.finfo(scores.dtype).min
+                )
             probs = torch.softmax(scores.float(), dim=-1).to(scores.dtype)
             y = F.dropout(probs, p=p, training=self.training) @ v
         return self.o(y.transpose(1, 2).contiguous().view(b, t, -1))
