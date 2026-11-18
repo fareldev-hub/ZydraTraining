@@ -1,6 +1,6 @@
 # Zydra v2
 
-Zydra v2 adalah model bahasa kausal berukuran kecil yang dilatih secara lokal, dimulai dari bobot acak menggunakan subset dataset instruksi berbahasa Indonesia.
+Zydra v2 adalah model bahasa kausal berukuran kecil yang dikembangkan dan dilatih dari nol (*from scratch*) menggunakan bobot yang diinisialisasi secara acak. Model dilatih menggunakan subset dataset instruksi berbahasa Indonesia dan berbagai data tambahan.
 
 Proyek ini merupakan *proof of concept* (PoC), bukan model serbaguna atau model penalaran tingkat lanjut. Checkpoint saat ini hanya mendukung masukan teks; analisis gambar belum tersedia.
 
@@ -35,9 +35,9 @@ Checkpoint kanonis Zydra v2 berada di:
 output/zydra-v2-full
 ```
 
-Checkpoint coding dan eksperimen lama menggunakan tokenizer yang berbeda. Oleh karena itu, bobot dari checkpoint tersebut tidak dapat langsung digabungkan.
+Training menggunakan model dan tokenizer yang dibangun dari awal. Seluruh proses training dan kelanjutannya menggunakan checkpoint serta tokenizer yang sama agar konsisten.
 
-Training saat ini menggunakan satu checkpoint dan tokenizer yang sama agar proses pelatihan dan kelanjutannya tetap konsisten.
+Checkpoint eksperimen yang menggunakan tokenizer atau konfigurasi berbeda tidak dapat langsung digabungkan dengan checkpoint utama.
 
 ## Menjalankan Training
 
@@ -49,13 +49,13 @@ python train.py
 
 ### Dataset Coding
 
-File [`datasheet/coding_multilanguage.jsonl`](datasheet/coding_multilanguage.jsonl) berisi 75 contoh orisinal yang mencakup 22 bahasa atau format pemrograman.
+File `datasheet/coding_multilanguage.jsonl` berisi 75 contoh orisinal yang mencakup 22 bahasa atau format pemrograman.
 
 Cakupan tersebut merupakan data awal (*starter dataset*), bukan representasi seluruh bahasa pemrograman dan framework.
 
-Data coding dilatih bersama dataset percakapan dan sumber data lainnya.
+Data coding dilatih bersama dataset percakapan dan sumber data lainnya sebagai bagian dari proses training model dari nol.
 
-Untuk melanjutkan training dengan dataset gabungan:
+Untuk melanjutkan training model yang sudah ada:
 
 ```bash
 .venv/bin/python train.py \
@@ -63,11 +63,11 @@ Untuk melanjutkan training dengan dataset gabungan:
   --epochs 1
 ```
 
-Jika checkpoint sudah tersedia, `train.py` akan melanjutkan training dari checkpoint tersebut di folder yang sama. Opsi `--resume` digunakan untuk menyatakan bahwa training memang dimaksudkan untuk dilanjutkan.
+Jika checkpoint sudah tersedia, training dapat dilanjutkan dari checkpoint tersebut. Gunakan folder output yang sama agar bobot model dan tokenizer tetap konsisten.
 
 Jangan menggunakan folder output baru ketika ingin melanjutkan training checkpoint yang sudah ada.
 
-Fine-tuning coding terakhir menggunakan:
+Training coding menggunakan dataset awal yang terdiri dari:
 - 72 contoh training
 - 3 contoh validasi
 - 20 epoch
@@ -85,7 +85,7 @@ Buat virtual environment:
 python3 -m venv .venv
 ```
 
-Aktifkan pip dan perbarui versinya:
+Perbarui pip:
 
 ```bash
 .venv/bin/python -m pip install --upgrade pip
@@ -105,9 +105,15 @@ Instal dependensi proyek:
 .venv/bin/python -m pip install -r requirements.txt
 ```
 
-### Training atau Melanjutkan Training
+### Training Model
 
-Untuk melatih atau melanjutkan model kanonis menggunakan seluruh data:
+Untuk melatih model dari awal:
+
+```bash
+.venv/bin/python train.py
+```
+
+Untuk melanjutkan training dari checkpoint yang sudah tersedia:
 
 ```bash
 .venv/bin/python train.py \
@@ -117,7 +123,7 @@ Untuk melatih atau melanjutkan model kanonis menggunakan seluruh data:
 
 Opsi `--max-samples 4096` dapat ditambahkan untuk melakukan *smoke test* dengan jumlah sampel terbatas.
 
-Tanpa `--resume`, `train.py` tetap mendeteksi checkpoint yang sudah tersedia dan melanjutkan training sesuai perilaku yang diterapkan dalam skrip.
+Training menggunakan objective *causal language modeling*, yaitu memprediksi token berikutnya berdasarkan token sebelumnya.
 
 Setelah setiap sesi training, evaluasi loss validasi dan uji kualitas jawaban model. Jangan hanya mengandalkan loss training untuk menilai kemampuan model.
 
@@ -125,7 +131,7 @@ Seluruh proses persiapan data dan training dijalankan melalui `train.py`. Gunaka
 
 ## Arsitektur Model
 
-Zydra menggunakan implementasi blok Transformer kausal yang mengadopsi komponen-komponen yang juga digunakan dalam arsitektur Llama, yaitu:
+Zydra menggunakan arsitektur Transformer decoder dengan komponen berikut:
 
 - RMSNorm
 - Rotary Positional Embedding (RoPE)
@@ -133,11 +139,11 @@ Zydra menggunakan implementasi blok Transformer kausal yang mengadopsi komponen-
 - SwiGLU
 - Causal self-attention
 
+Komponen tersebut diimplementasikan dalam kode model Zydra dan digunakan untuk membangun jaringan neural yang dilatih dari bobot awal secara acak.
+
 Model dilatih menggunakan *causal language modeling*, yaitu memprediksi token berikutnya berdasarkan token-token sebelumnya.
 
 Dengan demikian, Zydra dapat mempelajari pola bahasa dan meneruskan teks berdasarkan data training. Namun, hal tersebut tidak menjamin bahwa model memiliki pemahaman atau kemampuan berpikir seperti manusia maupun bahwa semua jawabannya benar.
-
-Arsitektur yang digunakan saat ini merupakan implementasi Zydra dengan komponen Transformer yang sudah dikenal, bukan arsitektur baru yang seluruh mekanismenya ditemukan secara independen.
 
 ## Chat Interaktif di Terminal
 
@@ -150,11 +156,12 @@ Jalankan:
 Secara default, CLI menggunakan seluruh datasheet sebagai konteks retrieval.
 
 Mekanisme jawabannya:
+
 1. Pertanyaan yang cocok secara persis dengan data dapat dijawab langsung menggunakan hasil pencocokan.
 2. Pertanyaan baru diteruskan ke generator Zydra bersama bukti relevan dari proses retrieval.
 3. Opsi `--use-retrieval` menampilkan hasil retrieval saja tanpa menjalankan generasi teks.
 
-Karena Zydra berukuran kecil dan dilatih dari awal, jawaban generatif masih dapat keliru, tidak lengkap, atau tidak koheren.
+Karena Zydra berukuran kecil dan dilatih dari nol, jawaban generatif masih dapat keliru, tidak lengkap, atau tidak koheren.
 
 Perintah CLI:
 - `keluar` untuk menghentikan sesi.
@@ -197,57 +204,17 @@ Checkpoint utama berada di:
 output/zydra-v2-full
 ```
 
-Untuk pengujian menggunakan `transformers`, konfigurasi model perlu menggunakan metadata arsitektur Llama yang kompatibel dengan pemuatan model tersebut.
+Pengujian model dilakukan menggunakan implementasi dan konfigurasi model Zydra yang sesuai dengan checkpoint-nya.
 
-**Penting:** Jangan mengubah `config.json` pada checkpoint kanonis hanya untuk pengujian kompatibilitas. Gunakan salinan checkpoint agar metadata asli Zydra tetap terjaga.
+Jangan mengubah konfigurasi checkpoint kanonis hanya untuk pengujian kompatibilitas dengan library atau runtime lain. Gunakan salinan checkpoint jika memerlukan eksperimen kompatibilitas.
 
-Pada salinan checkpoint, penyesuaian metadata dapat dilakukan dengan:
+Pengujian pemuatan model memeriksa apakah checkpoint dapat dibaca dan digunakan untuk generasi teks. Keberhasilan pemuatan tidak otomatis membuktikan kualitas generasi atau ketepatan jawaban.
 
-```bash
-sed -i \
-  's/"zydra"/"llama"/g; s/"ZydraForCausalLM"/"LlamaForCausalLM"/g' \
-  config.json
-```
-
-Periksa hasilnya:
-
-```bash
-grep -E "model_type|architectures" config.json
-```
-
-Kemudian uji pemuatan model:
-
-```bash
-python -c "
-import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer
-
-tok = AutoTokenizer.from_pretrained('.')
-model = AutoModelForCausalLM.from_pretrained('.').eval()
-
-inputs = tok('Halo', return_tensors='pt')
-
-with torch.no_grad():
-    outputs = model.generate(
-        **inputs,
-        max_new_tokens=50,
-        do_sample=False,
-        pad_token_id=tok.eos_token_id
-    )
-
-print(repr(tok.decode(outputs[0], skip_special_tokens=True)))
-"
-```
-
-Pengujian ini memeriksa apakah checkpoint dapat dimuat melalui jalur kompatibilitas `transformers`. Keberhasilan pemuatan tidak otomatis membuktikan kualitas generasi atau kompatibilitas seluruh fitur model.
-
-CLI Zydra tetap menggunakan mekanisme pemuatan checkpoint yang diterapkan dalam proyek dan tidak perlu mengubah metadata checkpoint kanonis untuk pengujian di atas.
+CLI Zydra menggunakan mekanisme pemuatan checkpoint yang diterapkan dalam proyek.
 
 ## Ekspor ke GGUF
 
-Pastikan direktori `llama.cpp/` tersedia di root proyek.
-
-Ekspor checkpoint Hugging Face Zydra v2 ke format GGUF F16 menggunakan:
+Ekspor checkpoint Zydra v2 ke format GGUF F16 menggunakan:
 
 ```bash
 .venv/bin/python train.py --export-gguf \
@@ -257,9 +224,9 @@ Ekspor checkpoint Hugging Face Zydra v2 ke format GGUF F16 menggunakan:
   --outtype f16
 ```
 
-Mode ekspor pada `train.py` menyiapkan salinan sementara dengan metadata arsitektur Llama dan mendaftarkan tokenizer ByteLevel Zydra.
+Mode ekspor pada `train.py` menyiapkan konversi checkpoint dan tokenizer ke format yang diperlukan oleh proses ekspor.
 
-Proses ini dirancang agar file checkpoint asli dan sumber `llama.cpp` tidak diubah.
+Proses ini dirancang agar file checkpoint asli tidak diubah.
 
 ### Kuantisasi GGUF
 
@@ -283,8 +250,6 @@ llama.cpp/build/bin/llama-cli \
   -n 64
 ```
 
-GGUF hasil ekspor menggunakan metadata arsitektur Llama yang kompatibel, bukan metadata runtime `zydra`. Implementasi blok Zydra saat ini menggunakan komponen yang berasal dari keluarga arsitektur Llama.
-
 Ekspor ke GGUF maupun kuantisasi tidak meningkatkan kemampuan model. Kualitas hasil tetap bergantung pada arsitektur, data training, proses pelatihan, dan evaluasi.
 
 ## Objective Training dan Keterbatasan
@@ -294,6 +259,7 @@ Zydra dilatih menggunakan objective *causal language modeling*: memprediksi toke
 Objective ini memungkinkan model mempelajari pola teks dan menghasilkan kelanjutan berdasarkan konteks. Namun, kemampuan tersebut tidak menjamin pemahaman seperti manusia, penalaran yang benar, atau ketepatan setiap jawaban.
 
 Untuk mengajarkan pola jawaban tertentu, dataset perlu menyertakan contoh yang memuat:
+
 - Pertanyaan atau instruksi
 - Penjelasan yang benar jika diperlukan
 - Jawaban akhir yang diharapkan
