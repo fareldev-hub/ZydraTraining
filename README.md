@@ -235,10 +235,6 @@ Perintah chat:
 
 Chat menyalurkan percakapan sebagai teks dan tidak memiliki pencarian web atau retrieval datasheet. Jika `temperature` bernilai `0`, generasi bersifat greedy; nilai di atas `0` mengaktifkan sampling.
 
-## Ekspor GGUF
-
-Ekspor GGUF saat ini **belum didukung**. `train.py --export-gguf` sengaja berhenti dengan pesan bahwa arsitektur native Zydra memerlukan converter khusus untuk `llama.cpp`.
-
 ## Evaluasi
 
 Training mencetak train loss, validation loss, dan `gap = validation loss - train loss` setiap epoch. Gunakan dataset yang tidak tercampur dengan train untuk evaluasi kemampuan yang lebih bermakna.
